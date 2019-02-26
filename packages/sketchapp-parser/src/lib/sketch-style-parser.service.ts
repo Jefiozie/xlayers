@@ -34,7 +34,7 @@ export enum SupportScore {
   providedIn: 'root'
 })
 export class SketchStyleParserService {
-  constructor(private binaryPlistParser: BinaryPropertyListParserService) {}
+  constructor(private binaryPlistParser: BinaryPropertyListParserService) { }
   public visit(sketch: SketchData) {
     const supp = this.checkSupport(sketch);
 
@@ -45,6 +45,7 @@ export class SketchStyleParserService {
     sketch.pages.forEach(page => {
       this.autoFixPagePosition(page);
       this.enrichCSSStyle(page);
+      this.findDuplications(page);
     });
     return supp;
   }
@@ -65,10 +66,12 @@ export class SketchStyleParserService {
   }
 
   autoFixPagePosition(page: SketchMSPage) {
-    if (page.frame.x !== 0 ||
-        page.frame.y !== 0 ||
-        (page.layers &&
-          (page.layers[0].frame.x !== 0 || page.layers[0].frame.y !== 0))) {
+    if (
+      page.frame.x !== 0 ||
+      page.frame.y !== 0 ||
+      (page.layers &&
+        (page.layers[0].frame.x !== 0 || page.layers[0].frame.y !== 0))
+    ) {
       page.frame.x = 0;
       page.frame.y = 0;
 
@@ -84,13 +87,56 @@ export class SketchStyleParserService {
       page.layers.map(layer => this.visitObject(layer, page, layer));
     }
   }
+  findDuplications(page: any): any {
+    if (page.layers) {
+      const css = page.layers.map(layer => layer.css);
+      this.parseDuplications(css);
+    }
+    return page;
+  }
+
+  parseDuplications(stylesAst: any): void {
+    const typeOneDeclarations = [];
+    const getPropertys = (ast: Object) => Object.keys(ast).map(e => `${e}: ${ast[e]}`);
+    for (let index = 0; index < stylesAst.length; index++) {
+      let checkingDecIndex = index;
+      const currentDeclaration = stylesAst[checkingDecIndex];
+      const currentDeclarationSet = new Set<string>(getPropertys(currentDeclaration));
+      const checkDeclarationPropertySet = new Set<string>(getPropertys(stylesAst[++checkingDecIndex]));
+
+      for (const key of Array.from(currentDeclarationSet.values())) {
+        if (checkDeclarationPropertySet.has(key)) {
+          typeOneDeclarations.push(key);
+        }
+      }
+    }
+    console.log(typeOneDeclarations)
+  }
+
+  compareDeclarations(a: Set<string>, b: Set<string>): boolean {
+    return a.size === b.size && this.all(this.isIn(b), a);
+  }
+
+  all(pred, as) {
+    for (const a of as) { if (!pred(a)) { return false; } }
+    return true;
+  }
+
+  isIn(as) {
+    return function (a) {
+      return as.has(a);
+    };
+  }
 
   visitObject(current: any, parent: any, root: any) {
     for (const property in current) {
       if (current.hasOwnProperty(property)) {
         if (typeof current[property] === 'object') {
           // visit child
-          if (current[property].frame && current[property].frame._class === 'rect') {
+          if (
+            current[property].frame &&
+            current[property].frame._class === 'rect'
+          ) {
             this.visitObject(current[property], current, current[property]);
           } else {
             this.visitObject(current[property], current, root);
@@ -118,7 +164,9 @@ export class SketchStyleParserService {
   parseAttributeString(node: SketchMSLayer) {
     const obj = node.attributedString;
     if (obj && obj.hasOwnProperty('archivedAttributedString')) {
-      const archive = this.binaryPlistParser.parse64Content(obj.archivedAttributedString._archive);
+      const archive = this.binaryPlistParser.parse64Content(
+        obj.archivedAttributedString._archive
+      );
       if (archive) {
         switch (archive.$key) {
           case 'ascii':
@@ -136,15 +184,17 @@ export class SketchStyleParserService {
    */
   parseGroup(layer: SketchMSLayer) {
     return {
-      style: (layer as SketchMSLayer).frame ? {
-        display: 'block',
-        position: 'absolute',
-        left: `${layer.frame.x}px`,
-        top: `${layer.frame.y}px`,
-        width: `${layer.frame.width}px`,
-        height: `${layer.frame.height}px`,
-        visibility: layer.isVisible ? 'visible' : 'hidden'
-      } : {}
+      style: (layer as SketchMSLayer).frame
+        ? {
+          display: 'block',
+          position: 'absolute',
+          left: `${layer.frame.x}px`,
+          top: `${layer.frame.y}px`,
+          width: `${layer.frame.width}px`,
+          height: `${layer.frame.height}px`,
+          visibility: layer.isVisible ? 'visible' : 'hidden'
+        }
+        : {}
     };
   }
 
@@ -153,47 +203,53 @@ export class SketchStyleParserService {
    */
   parseObject(layer: any) {
     switch (layer._class) {
-    case 'symbolMaster':
-      return {
-        style: {
-          ...this.transformSymbolMaster(layer)
-        }
-      };
+      case 'symbolMaster':
+        return {
+          style: {
+            ...this.transformSymbolMaster(layer)
+          }
+        };
 
-    case 'style':
-      return {
-        style: {
-          ...this.transformBlur(layer),
-          ...this.transformBorders(layer),
-          ...this.transformFills(layer),
-          ...this.transformShadows(layer)
-        }
-      };
+      case 'style':
+        return {
+          style: {
+            ...this.transformBlur(layer),
+            ...this.transformBorders(layer),
+            ...this.transformFills(layer),
+            ...this.transformShadows(layer)
+          }
+        };
 
-    case 'text':
-      return {
-        text: this.transformTextContent(layer),
-        style: {
-          ...this.transformTextColor(layer),
-          ...this.transformParagraphStyle(layer),
-          ...this.transformTextFont(layer)
-        }
-      };
+      case 'text':
+        return {
+          text: this.transformTextContent(layer),
+          style: {
+            ...this.transformTextColor(layer),
+            ...this.transformParagraphStyle(layer),
+            ...this.transformTextFont(layer)
+          }
+        };
 
-    default:
-      return {
-        style: {
-          ...(layer as SketchMSPage).rotation ? {
-            transform: `rotate(${layer.rotation}deg)`
-          } : {},
-          ...(layer as SketchMSPage).fixedRadius ? {
-            'border-radius': `${layer.fixedRadius}px`
-          } : {},
-          ...(layer as SketchMSGraphicsContextSettings).opacity ? {
-            opacity: `${layer.opacity}`
-          } : {}
-        }
-      };
+      default:
+        return {
+          style: {
+            ...((layer as SketchMSPage).rotation
+              ? {
+                transform: `rotate(${layer.rotation}deg)`
+              }
+              : {}),
+            ...((layer as SketchMSPage).fixedRadius
+              ? {
+                'border-radius': `${layer.fixedRadius}px`
+              }
+              : {}),
+            ...((layer as SketchMSGraphicsContextSettings).opacity
+              ? {
+                opacity: `${layer.opacity}`
+              }
+              : {})
+          }
+        };
     }
   }
 
@@ -202,7 +258,7 @@ export class SketchStyleParserService {
    */
   polyfill(layer: any) {
     return {
-      text: layer.name,
+      text: layer.name
     };
   }
 
@@ -218,7 +274,8 @@ export class SketchStyleParserService {
   }
 
   transformTextFont(node: SketchMSLayer) {
-    const obj = node.style.textStyle.encodedAttributes.MSAttributedStringFontAttribute;
+    const obj =
+      node.style.textStyle.encodedAttributes.MSAttributedStringFontAttribute;
     if (obj.hasOwnProperty('_class') && obj._class === 'fontDescriptor') {
       return {
         'font-family': `'${obj.attributes.name}', 'Roboto', 'sans-serif'`,
@@ -248,9 +305,7 @@ export class SketchStyleParserService {
     const obj = node.style.textStyle.encodedAttributes;
     if (obj.hasOwnProperty('MSAttributedStringColorAttribute')) {
       return {
-        color: this.parseColors(
-          obj.MSAttributedStringColorAttribute
-        ).rgba
+        color: this.parseColors(obj.MSAttributedStringColorAttribute).rgba
       };
     } else if (obj.hasOwnProperty('NSColor')) {
       // TODO: Handle legacy
@@ -265,9 +320,11 @@ export class SketchStyleParserService {
 
   transformBlur(node: SketchMSStyle) {
     const obj = node.blur;
-    return obj && obj.radius > 0 ? {
-      filter: `blur(${obj.radius}px);`
-    } : {};
+    return obj && obj.radius > 0
+      ? {
+        filter: `blur(${obj.radius}px);`
+      }
+      : {};
   }
 
   transformBorders(node: SketchMSStyle) {
@@ -288,9 +345,11 @@ export class SketchStyleParserService {
       return acc;
     }, []);
 
-    return bordersStyles.length > 0 ? {
-      'box-shadow': bordersStyles.join(',')
-    } : {};
+    return bordersStyles.length > 0
+      ? {
+        'box-shadow': bordersStyles.join(',')
+      }
+      : {};
   }
 
   transformFills(node: SketchMSStyle) {
@@ -338,7 +397,7 @@ export class SketchStyleParserService {
         const color = this.parseColors(innerShadow.color);
         shadowsStyles.push(
           `${innerShadow.offsetX}px ${innerShadow.offsetY}px ${
-            innerShadow.blurRadius
+          innerShadow.blurRadius
           }px ${innerShadow.spread}px ${color.rgba} inset`
         );
       });
@@ -348,15 +407,17 @@ export class SketchStyleParserService {
         const color = this.parseColors(shadow.color);
         shadowsStyles.push(
           `${shadow.offsetX}px ${shadow.offsetY}px ${shadow.blurRadius}px ${
-            shadow.spread
+          shadow.spread
           }px ${color.rgba}`
         );
       });
     }
 
-    return shadowsStyles.length > 0 ? {
-      'box-shadow': shadowsStyles.join(',')
-    } : {};
+    return shadowsStyles.length > 0
+      ? {
+        'box-shadow': shadowsStyles.join(',')
+      }
+      : {};
   }
 
   parseColors(color: SketchMSColor) {

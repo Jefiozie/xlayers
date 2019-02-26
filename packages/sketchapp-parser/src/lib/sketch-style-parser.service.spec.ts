@@ -2,7 +2,7 @@ import { async, TestBed } from '@angular/core/testing';
 import { SketchStyleParserService, BorderType } from './sketch-style-parser.service';
 import { getSketchColorMock } from './sketch-style-parser.service.mock';
 
-describe('SketchStyleParserService', () => {
+fdescribe('SketchStyleParserService', () => {
   let sketchStyleParserService: SketchStyleParserService;
 
   beforeEach(async(() => {
@@ -148,22 +148,22 @@ describe('SketchStyleParserService', () => {
       }]
     } as SketchMSStyle;
     const color = sketchStyleParserService['parseColors'](obj.shadows[0].color);
-    expect(sketchStyleParserService.transformShadows(obj)).toEqual({ 'box-shadow': `123px 53px 12px 23px ${color.rgba}`});
+    expect(sketchStyleParserService.transformShadows(obj)).toEqual({ 'box-shadow': `123px 53px 12px 23px ${color.rgba}` });
   });
 
   describe('when parse blur', () => {
     it('should parse positive radius blur', () => {
-      const obj = {blur: {radius: 96}} as SketchMSStyle;
-      expect(sketchStyleParserService.transformBlur(obj)).toEqual({filter: `blur(${obj.blur.radius}px);`});
+      const obj = { blur: { radius: 96 } } as SketchMSStyle;
+      expect(sketchStyleParserService.transformBlur(obj)).toEqual({ filter: `blur(${obj.blur.radius}px);` });
     });
 
     it('should skip for negative blur radius', () => {
-      const obj = {blur: {radius: -123}} as SketchMSStyle;
+      const obj = { blur: { radius: -123 } } as SketchMSStyle;
       expect(sketchStyleParserService.transformBlur(obj)).toEqual({});
     });
 
     it('should skip for 0 blur radius', () => {
-      const obj = {blur: {radius: 0}} as SketchMSStyle;
+      const obj = { blur: { radius: 0 } } as SketchMSStyle;
       expect(sketchStyleParserService.transformBlur(obj)).toEqual({});
     });
 
@@ -183,7 +183,7 @@ describe('SketchStyleParserService', () => {
         }]
       } as SketchMSStyle;
       const color = sketchStyleParserService['parseColors'](obj.borders[0].color);
-      expect(sketchStyleParserService.transformBorders(obj)).toEqual({'box-shadow': `0 0 0 129px ${color.rgba}`});
+      expect(sketchStyleParserService.transformBorders(obj)).toEqual({ 'box-shadow': `0 0 0 129px ${color.rgba}` });
     });
 
     it('should skip for negative thickness border', () => {
@@ -206,7 +206,7 @@ describe('SketchStyleParserService', () => {
         }]
       } as SketchMSStyle;
       const color = sketchStyleParserService['parseColors'](obj.borders[0].color);
-      expect(sketchStyleParserService.transformBorders(obj)).toEqual({'box-shadow': `0 0 0 129px ${color.rgba} inset`});
+      expect(sketchStyleParserService.transformBorders(obj)).toEqual({ 'box-shadow': `0 0 0 129px ${color.rgba} inset` });
     });
 
     it('should skip fallback to default on center position', () => {
@@ -218,7 +218,7 @@ describe('SketchStyleParserService', () => {
         }]
       } as SketchMSStyle;
       const color = sketchStyleParserService['parseColors'](obj.borders[0].color);
-      expect(sketchStyleParserService.transformBorders(obj)).toEqual({'box-shadow': `0 0 0 129px ${color.rgba}`});
+      expect(sketchStyleParserService.transformBorders(obj)).toEqual({ 'box-shadow': `0 0 0 129px ${color.rgba}` });
     });
 
     it('should skip fallback to default on outside position', () => {
@@ -230,11 +230,11 @@ describe('SketchStyleParserService', () => {
         }]
       } as SketchMSStyle;
       const color = sketchStyleParserService['parseColors'](obj.borders[0].color);
-      expect(sketchStyleParserService.transformBorders(obj)).toEqual({'box-shadow': `0 0 0 129px ${color.rgba}`});
+      expect(sketchStyleParserService.transformBorders(obj)).toEqual({ 'box-shadow': `0 0 0 129px ${color.rgba}` });
     });
 
     it('should skip on empty border', () => {
-      const obj = {borders: []} as SketchMSStyle;
+      const obj = { borders: [] } as SketchMSStyle;
       expect(sketchStyleParserService.transformBorders(obj)).toEqual({});
     });
 
@@ -303,6 +303,36 @@ describe('SketchStyleParserService', () => {
         'background-color': color.rgba,
         'background': `linear-gradient(90deg, ${colorStop.rgba})`
       });
+    });
+  });
+
+  describe('when ast is parsed it should unduplicate', () => {
+    it('should provide a list of duplicate css items', () => {
+      const css = {
+        display: `block`,
+        position: `absolute`,
+        left: `0px`,
+        top: `0px`,
+        width: `344px`,
+        height: `208px`,
+        visibility: `visible`
+      }
+      const data = {
+        layers: [
+          {
+            name: 'a',
+            css
+          },{
+            name: 'b',
+            css
+          }
+        ]
+      };
+
+
+      const act = sketchStyleParserService.findDuplications(data);
+      const result = data;
+      expect(act).toBe({a:''});
     });
   });
 });
