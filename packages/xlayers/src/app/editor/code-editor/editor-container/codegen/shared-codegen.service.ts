@@ -1,35 +1,34 @@
-import { Injectable } from '@angular/core';
+import { Injectable } from "@angular/core";
 
 export enum Template {
   HTML,
   JSX
 }
-
+interface cssthing {
+  className: string;
+  declarations: string[];
+}
 @Injectable({
-  providedIn: 'root'
+  providedIn: "root"
 })
 export class SharedCodegen {
-  private indentationSymbol = '  '; // 2 spaces ftw
+  private indentationSymbol = `  `; // 2 spaces ftw
 
   generateComponentStyles(ast: SketchMSLayer) {
-    const styles: Array<string[]> = [
-      // [
-      //   ':host {',
-      //   `${this.indentationSymbol}display: block;`,
-      //   `${this.indentationSymbol}position: relative;`,
-      //   '}',
-      //   ''
-      // ]
+    const styles: Array<cssthing> = [
+      {
+        className: ":host",
+        declarations: [`display: block;`, `position: relative;`]
+      }
     ];
 
-    (function computeStyle(_ast: SketchMSLayer, _styles, indentationSymbol) {
-      const content = (data: string[]) => {
+    (function computeStyle(_ast: SketchMSLayer, _styles) {
+      const content = (name: string, data: string[]) => {
         if (data) {
-          styles.push(data);
+          styles.push({ className: name, declarations: data });
         }
       };
       if (_ast.layers && Array.isArray(_ast.layers)) {
-
         _ast.layers.forEach(layer => {
           const rules: string[] = [];
           if (layer.css) {
@@ -37,64 +36,77 @@ export class SharedCodegen {
             for (const prop in layer.css) {
               rules.push(`${prop}: ${layer.css[prop]};`);
             }
-            content(rules
-              // [
-              //   `.${(layer as any).css__className} {`,
-              //   rules.map(rule => indentationSymbol + rule).join('\n'),
-              //   '}'
-              // ].join('\n')
-            );
+            content(`${(layer as any).css__className}`, rules);
           }
 
-          computeStyle(layer, [rules], indentationSymbol);
+          computeStyle(layer, [
+            {
+              className: `${(layer as any).css__className}`,
+              declarations: rules
+            }
+          ]);
         });
       }
-    })(ast, styles, this.indentationSymbol);
+    })(ast, styles);
     this.parseDuplications(styles);
-
-    return styles.join('\n');
+    return styles
+      .map(
+        e =>
+          `.${e.className} {
+            ${e.declarations
+              .map(rule => this.indentationSymbol + rule)
+              .join("\n")}
+     }
+    `
+      )
+      .join("\n");
   }
 
-  parseDuplications(stylesAst: any): any {
-    debugger;
-    // const getDeclaration = (ast: Object) => Object.keys(ast).map(e => `${e}: ${ast[e]}`);
+  parseDuplications(stylesAst: cssthing[]): any {
     for (let index = 0; index < stylesAst.length; index++) {
       let checkingDecIndex = index;
-      const currentDeclaration = stylesAst[index];
-      const currentDeclarationSet = new Set<string>(currentDeclaration);
+      const currentDeclaration: cssthing = stylesAst[index];
+      const currentDeclarationSet = new Set<string>(
+        currentDeclaration.declarations
+      );
       while (++checkingDecIndex < stylesAst.length) {
-        const checkDeclarationPropertySet = new Set<string>(stylesAst[checkingDecIndex]);
+        const checkDeclarationPropertySet = new Set<string>(
+          stylesAst[checkingDecIndex].declarations
+        );
 
         for (const key of Array.from(currentDeclarationSet.values())) {
           if (checkDeclarationPropertySet.has(key)) {
             checkDeclarationPropertySet.delete(key);
           }
         }
-        stylesAst[checkingDecIndex] = Object.assign([], Array.from(checkDeclarationPropertySet.values()));
+        console.error(stylesAst[checkingDecIndex])
+        stylesAst[checkingDecIndex].declarations = Object.assign(
+          Array.from(checkDeclarationPropertySet.values())
+        );
       }
     }
     return stylesAst;
   }
 
-  openTag(tag = 'div', attributes = []) {
+  openTag(tag = "div", attributes = []) {
     return `<${tag}${
-      attributes.length !== 0 ? ' ' + attributes.join(' ') : ''
-      }>`;
+      attributes.length !== 0 ? " " + attributes.join(" ") : ""
+    }>`;
   }
 
-  closeTag(tag = 'div') {
+  closeTag(tag = "div") {
     return `</${tag}>`;
   }
 
   indent(n: number, content: string) {
-    const indentation = !!n ? this.indentationSymbol.repeat(n) : '';
+    const indentation = !!n ? this.indentationSymbol.repeat(n) : "";
     return indentation + content;
   }
 
   generateComponentTemplate(ast: SketchMSLayer, kind: Template) {
     const template: Array<string> = [];
     this.computeTemplate(ast, template, 0, kind);
-    return template.join('\n');
+    return template.join("\n");
   }
 
   private computeTemplate(
@@ -103,9 +115,9 @@ export class SharedCodegen {
     depth = 0,
     kind = Template.HTML
   ) {
-    let classNameAttr = 'class';
+    let classNameAttr = "class";
     if (kind === Template.JSX) {
-      classNameAttr = 'className';
+      classNameAttr = "className";
     }
 
     if (ast.layers && Array.isArray(ast.layers)) {
@@ -116,7 +128,7 @@ export class SharedCodegen {
             `role="${layer._class}"`,
             `aria-label="${layer.name}"`
           ];
-          template.push(this.indent(depth, this.openTag('div', attributes)));
+          template.push(this.indent(depth, this.openTag("div", attributes)));
         }
 
         const content = this.computeTemplate(layer, template, depth + 1, kind);
@@ -125,19 +137,19 @@ export class SharedCodegen {
         }
 
         if (layer.css) {
-          template.push(this.indent(depth, this.closeTag('div')));
+          template.push(this.indent(depth, this.closeTag("div")));
         }
       });
     } else {
       const innerText = [];
 
-      if ((ast as any)._class === 'text') {
-        innerText.push(this.openTag('span'));
+      if ((ast as any)._class === "text") {
+        innerText.push(this.openTag("span"));
         innerText.push(ast.attributedString.string);
-        innerText.push(this.closeTag('span'));
+        innerText.push(this.closeTag("span"));
       }
 
-      return innerText.join('');
+      return innerText.join("");
     }
   }
 }
