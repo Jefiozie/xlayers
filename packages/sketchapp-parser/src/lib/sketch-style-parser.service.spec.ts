@@ -307,7 +307,23 @@ fdescribe('SketchStyleParserService', () => {
   });
 
   describe('when ast is parsed it should unduplicate', () => {
-    it('should provide a list of duplicate css items', () => {
+
+
+    it('should eliminate all duplicate css', () => {
+
+      const arrayOfStyles = [':host {\n  display: block;\n  position: relative;\n}\n',
+        '.xly_0aqp {\n  display: block;\n  position: absolute;\n  left: 0px;\n  top: 0px;\n  width: 344px;\n  height: 208px;\n  visibility: visible;\n}',
+        '.xly_2oag {\n  border-radius: 3px;\n  display: block;\n  position: absolute;\n  left: 0px;\n  top: 0px;\n  width: 344px;\n  height: 208px;\n  visibility: visible;\n  box-shadow: 0px 2px 2px 0px rgba(0,0,0,0.24),0px 0px 2px 0px rgba(0,0,0,0.12);\n  background-color: rgba(250,250,250,1);\n  opacity: 1;\n}',
+      '.xly_6p1h {\n  color: rgba(0,150,136,1);\n  font-family: \'Roboto-Regular\', \'Roboto\', \'sans-serif\';\n  font-size: 24px;\n  display: block;\n  position: absolute;\n  left: 18px;\n  top: 22px;\n  width: 166px;\n  height: 32px;\n  visibility: visible;\n}',
+      '.xly_nnjs {\n  color: rgba(0,0,0,0.87);\n  font-family: \'Roboto-Regular\', \'Roboto\', \'sans-serif\';\n  font-size: 16px;\n  display: block;\n  position: absolute;\n  left: 19px;\n  top: 61px;\n  width: 204px;\n  height: 48px;\n  visibility: visible;\n}',
+      '.xly_1f2l {\n  display: block;\n  position: absolute;\n  left: 77px;\n  top: 165px;\n  width: 54px;\n  height: 36px;\n  visibility: visible;\n}',
+      '.xly_kxmb {\n  display: block;\n  position: absolute;\n  left: 0px;\n  top: 0px;\n  width: 54px;\n  height: 36px;\n  visibility: visible;\n  opacity: 0.5;\n}',
+      '.xly_aaxa {\n  color: rgba(0,150,136,1);\n  font-family: \'Roboto-Medium\', \'Roboto\', \'sans-serif\';\n  font-size: 14px;\n  display: block;\n  position: absolute;\n  left: 14.5px;\n  top: 10px;\n  width: 26px;\n  height: 38px;\n  visibility: visible;\n}',
+      '.xly_tj9b {\n  display: block;\n  position: absolute;\n  left: 8px;\n  top: 165px;\n  width: 68px;\n  height: 36px;\n  visibility: visible;\n}',
+      '.xly_ysqv {\n  display: block;\n  position: absolute;\n  left: 0px;\n  top: 0px;\n  width: 68px;\n  height: 36px;\n  visibility: visible;\n  opacity: 0.5;\n}',
+      '.xly_weot {\n  color: rgba(0,150,136,1);\n  font-family: \'Roboto-Medium\', \'Roboto\', \'sans-serif\';\n  font-size: 14px;\n  display: block;\n  position: absolute;\n  left: 24.5px;\n  top: 10px;\n  width: 20px;\n  height: 16px;\n  visibility: visible;\n}',
+      '.xly_wa4a {\n  display: block;\n  position: absolute;\n  left: 0px;\n  top: 154px;\n  width: 344px;\n  height: 3px;\n  visibility: visible;\n  box-shadow: 0 0 0 1px rgba(0,0,0,0.12);\n}']'"'
+
       const css = {
         display: `block`,
         position: `absolute`,
@@ -316,13 +332,13 @@ fdescribe('SketchStyleParserService', () => {
         width: `344px`,
         height: `208px`,
         visibility: `visible`
-      }
+      };
       const data = {
         layers: [
           {
             name: 'a',
             css
-          },{
+          }, {
             name: 'b',
             css
           }
@@ -331,8 +347,17 @@ fdescribe('SketchStyleParserService', () => {
 
 
       const act = sketchStyleParserService.findDuplications(data);
-      const result = data;
-      expect(act).toBe({a:''});
+      const result = {
+        layers: [
+          {
+            name: 'a',
+            css
+          }, {
+            name: 'b'
+          }
+        ]
+      };
+      expect(data).toEqual(result);
     });
   });
 });

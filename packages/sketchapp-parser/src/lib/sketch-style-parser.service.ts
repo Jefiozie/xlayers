@@ -1,5 +1,6 @@
 import { BinaryPropertyListParserService } from './bplist-parser.service';
 import { Injectable } from '@angular/core';
+import { style } from '@angular/animations';
 
 // TODO: Move to @types/sketchapp
 export interface SketchData {
@@ -45,7 +46,7 @@ export class SketchStyleParserService {
     sketch.pages.forEach(page => {
       this.autoFixPagePosition(page);
       this.enrichCSSStyle(page);
-      this.findDuplications(page);
+      // this.findDuplications(page);
     });
     return supp;
   }
@@ -92,41 +93,28 @@ export class SketchStyleParserService {
       const css = page.layers.map(layer => layer.css);
       this.parseDuplications(css);
     }
-    return page;
   }
 
   parseDuplications(stylesAst: any): void {
-    const typeOneDeclarations = [];
-    const getPropertys = (ast: Object) => Object.keys(ast).map(e => `${e}: ${ast[e]}`);
+
+    const getDeclaration = (ast: Object) => Object.keys(ast).map(e => `${e}: ${ast[e]}`);
     for (let index = 0; index < stylesAst.length; index++) {
       let checkingDecIndex = index;
-      const currentDeclaration = stylesAst[checkingDecIndex];
-      const currentDeclarationSet = new Set<string>(getPropertys(currentDeclaration));
-      const checkDeclarationPropertySet = new Set<string>(getPropertys(stylesAst[++checkingDecIndex]));
+      const currentDeclaration = stylesAst[index];
+      const currentDeclarationSet = new Set<string>(getDeclaration(currentDeclaration));
+      while (++checkingDecIndex < stylesAst.length) {
+        const checkDeclarationPropertySet = new Set<string>(getDeclaration(stylesAst[checkingDecIndex]));
 
-      for (const key of Array.from(currentDeclarationSet.values())) {
-        if (checkDeclarationPropertySet.has(key)) {
-          typeOneDeclarations.push(key);
+        for (const key of Array.from(currentDeclarationSet.values())) {
+          if (checkDeclarationPropertySet.has(key)) {
+            checkDeclarationPropertySet.delete(key);
+          }
         }
+        stylesAst[checkingDecIndex] = Object.assign({}, Array.from(checkDeclarationPropertySet.values()).join('\n'));
       }
     }
-    console.log(typeOneDeclarations)
   }
 
-  compareDeclarations(a: Set<string>, b: Set<string>): boolean {
-    return a.size === b.size && this.all(this.isIn(b), a);
-  }
-
-  all(pred, as) {
-    for (const a of as) { if (!pred(a)) { return false; } }
-    return true;
-  }
-
-  isIn(as) {
-    return function (a) {
-      return as.has(a);
-    };
-  }
 
   visitObject(current: any, parent: any, root: any) {
     for (const property in current) {

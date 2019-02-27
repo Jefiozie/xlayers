@@ -12,51 +12,74 @@ export class SharedCodegen {
   private indentationSymbol = '  '; // 2 spaces ftw
 
   generateComponentStyles(ast: SketchMSLayer) {
-    const styles: Array<string> = [
-      [
-        ':host {',
-        `${this.indentationSymbol}display: block;`,
-        `${this.indentationSymbol}position: relative;`,
-        '}',
-        ''
-      ].join('\n')
+    const styles: Array<string[]> = [
+      // [
+      //   ':host {',
+      //   `${this.indentationSymbol}display: block;`,
+      //   `${this.indentationSymbol}position: relative;`,
+      //   '}',
+      //   ''
+      // ]
     ];
 
     (function computeStyle(_ast: SketchMSLayer, _styles, indentationSymbol) {
-      const content = (data: string) => {
+      const content = (data: string[]) => {
         if (data) {
-          _styles.push(data);
+          styles.push(data);
         }
       };
       if (_ast.layers && Array.isArray(_ast.layers)) {
+
         _ast.layers.forEach(layer => {
+          const rules: string[] = [];
           if (layer.css) {
-            const rules: string[] = [];
             // tslint:disable-next-line:forin
             for (const prop in layer.css) {
               rules.push(`${prop}: ${layer.css[prop]};`);
             }
-            content(
-              [
-                `.${(layer as any).css__className} {`,
-                rules.map(rule => indentationSymbol + rule).join('\n'),
-                '}'
-              ].join('\n')
+            content(rules
+              // [
+              //   `.${(layer as any).css__className} {`,
+              //   rules.map(rule => indentationSymbol + rule).join('\n'),
+              //   '}'
+              // ].join('\n')
             );
           }
 
-          computeStyle(layer, styles, indentationSymbol);
+          computeStyle(layer, [rules], indentationSymbol);
         });
       }
     })(ast, styles, this.indentationSymbol);
+    this.parseDuplications(styles);
 
     return styles.join('\n');
+  }
+
+  parseDuplications(stylesAst: any): any {
+    debugger;
+    // const getDeclaration = (ast: Object) => Object.keys(ast).map(e => `${e}: ${ast[e]}`);
+    for (let index = 0; index < stylesAst.length; index++) {
+      let checkingDecIndex = index;
+      const currentDeclaration = stylesAst[index];
+      const currentDeclarationSet = new Set<string>(currentDeclaration);
+      while (++checkingDecIndex < stylesAst.length) {
+        const checkDeclarationPropertySet = new Set<string>(stylesAst[checkingDecIndex]);
+
+        for (const key of Array.from(currentDeclarationSet.values())) {
+          if (checkDeclarationPropertySet.has(key)) {
+            checkDeclarationPropertySet.delete(key);
+          }
+        }
+        stylesAst[checkingDecIndex] = Object.assign([], Array.from(checkDeclarationPropertySet.values()));
+      }
+    }
+    return stylesAst;
   }
 
   openTag(tag = 'div', attributes = []) {
     return `<${tag}${
       attributes.length !== 0 ? ' ' + attributes.join(' ') : ''
-    }>`;
+      }>`;
   }
 
   closeTag(tag = 'div') {
