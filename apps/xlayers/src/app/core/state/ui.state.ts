@@ -332,7 +332,7 @@ export class UiState {
     this.snackBar
       .open(
         action.message,
-        action.errorType === ErrorType.None ? 'CLOSE' : 'REPORT',
+        action.errorType === ErrorType.None ? 'CLOSET' : 'REPORT',
         {
           duration: action.errorType === ErrorType.None ? 5000 : 0,
         }
